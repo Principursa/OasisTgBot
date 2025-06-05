@@ -1,8 +1,17 @@
-FROM python:alpine3.17
+FROM python:3.11-alpine
 
-WORKDIR /bot
-COPY ./bot.py ./requirements.txt /bot
-RUN pip install -r requirements.txt
+WORKDIR /app
+
+# Copy dependency files first for better layer caching
+COPY pyproject.toml poetry.lock* requirements.txt ./
+
+# Install Poetry and dependencies
+RUN pip install --no-cache-dir poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-dev --no-root || pip install -r requirements.txt
+
+# Copy all Python source files
+COPY *.py ./
 
 ENTRYPOINT ["python", "bot.py"]
 

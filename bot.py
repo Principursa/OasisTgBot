@@ -2,12 +2,10 @@ import os
 import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from openai import OpenAI
+from ai import analyze_forwarded_message
+from dotenv import load_dotenv
 
-client = OpenAI(
-    # This is the default and can be omitted
-    api_key=os.environ.get("OPENAI_API_KEY"),
-)
+load_dotenv()
 
 # Enable logging to see what's happening
 logging.basicConfig(
@@ -43,38 +41,8 @@ async def handle_forwarded_message(update: Update, context: ContextTypes.DEFAULT
     message_text = message.text or message.caption or ""
     current_sender_name = f"@{current_sender.username}" if current_sender.username else current_sender.first_name
     
-    prompt = f"""
-    Analyze this forwarded message for potential account impersonation or compromise:
-    
-    Original sender: {original_sender_name}
-    Current sender: {current_sender_name}
-    Message content: "{message_text}"
-    
-    Look for signs of:
-    1. Account compromise/hacking (suspicious content that doesn't match typical user behavior)
-    2. Impersonation attempts (claiming to be someone else)
-    3. Scam messages (phishing, fake giveaways, suspicious links)
-    4. Unusual language patterns or requests
-    
-    If you detect potential compromise/impersonation, respond with:
-    "🚨 POTENTIAL ACCOUNT COMPROMISE DETECTED
-    
-    Compromised account: [username/name]
-    Indicators: [specific reasons for suspicion]
-    Recommendation: [what users should do]"
-    
-    If the message appears legitimate, respond with:
-    "✅ Message appears legitimate - no signs of compromise detected."
-    """
-    
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=500
-        )
-        
-        analysis_result = response.choices[0].message.content
+        analysis_result = await analyze_forwarded_message(original_sender_name, current_sender_name, message_text)
         await message.reply_text(analysis_result)
         
     except Exception as e:
@@ -98,4 +66,4 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    main() 
